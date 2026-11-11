@@ -1,0 +1,1 @@
+{"description":"Deterministic 4-colour symptom triage for Indian OPDs — Future Health 2026, statements #4/#5","license":"MIT","name":"opd-triage-lens","private":true,"scripts":{"test":"node tests/test.js"},"version":"1.0.0"}
