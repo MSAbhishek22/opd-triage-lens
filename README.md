@@ -2,6 +2,8 @@
 
 **Deterministic 4-colour symptom triage for Indian OPDs — Future Health Digital Innovation Challenge 2026, statements #4 (Precision Prevention and Screening) and #5 (Closing the Screening-to-Care Loop).**
 
+**Live demo:** https://opd-triage-lens.vercel.app
+
 > **Not a diagnosis.** OPD Triage Lens triages urgency for OPD flow only. It never diagnoses, never prescribes. In an emergency, call 108.
 
 ## The problem
