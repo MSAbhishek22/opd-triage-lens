@@ -14,6 +14,10 @@ design descriptions — noted honestly).
   (intake left, sticky verdict right); CSS 3D triage dial; 3-column rule grid.
 - Signature interaction: deterministic verdict card with cited rule + doctor
   handoff (copy/print/download); dial needle follows the verdict.
+- v1.1 (18 Nov 2026): Prevent mode in the same identity — a five-step strip
+  (Consent → Inputs → Signals → Schedule → Documentation), three signal cards
+  with level-coloured top borders, a dated screening checklist, and a
+  prevention plan in the same mono pre-block + Copy/Download/Print pattern.
 - 3D: CSS 3D conic-gradient dial with pointer tilt + needle; static fallback.
 
 ## Compared projects

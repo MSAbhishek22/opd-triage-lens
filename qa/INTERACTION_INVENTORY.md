@@ -1,6 +1,6 @@
-# Interaction Inventory — OPD Triage Lens (v1.0, 12 Nov 2026)
+# Interaction Inventory — OPD Triage Lens (v1.1, 18 Nov 2026)
 Every visible control, what it does, and the test evidence. Status: PASS unless noted.
-Verified by headless E2E (/tmp/opd-pw/e2e.js, 21/21 pass, 0 console errors) + unit tests (23/23).
+Verified by headless E2E (/tmp/opd-prevent-e2e.py, 33/33 pass, 0 console errors) + unit tests (39/39).
 
 | # | Page / component | Control | User action | Expected behaviour | Evidence | Status |
 |---|---|---|---|---|---|---|
@@ -27,15 +27,43 @@ Verified by headless E2E (/tmp/opd-pw/e2e.js, 21/21 pass, 0 console errors) + un
 | 21 | Rule book | Filter buttons (All/RED/AMBER/GREEN/BLUE) | Click | Filters grid; counts shown | E2E: RED → 7 cards verified | PASS |
 | 22 | Rule book | Search input | Type | Filters cards by label/keywords/advice substring | E2E: "bukhar" → 2 cards verified | PASS |
 | 23 | Footer | — | — | No controls; static text + disclaimer | — | PASS |
+| 24 | Header | Prevent nav link | Click | Switches to Prevent mode, scrolls to #prevent | E2E: mode switch verified | PASS |
+| 25 | Hero | Mode switch (Triage / Prevent) | Click | Toggles mode: triage sections (#intake/#dial/#corpus) vs Prevent section (#prevent); aria-pressed + active state update; skip link retargets | E2E: both directions verified | PASS |
+| 26 | Prevent · Consent | Consent checkboxes (2) | Check | Continue stays disabled until both checked (screening-only + local-only) | E2E: 0-box disabled, 1-box disabled, 2-box enabled | PASS |
+| 27 | Prevent · Consent | Continue button | Click | Advances to Inputs step; disabled until consent complete | E2E: inputs step shown | PASS |
+| 28 | Prevent · Inputs | Synthetic persona buttons (Low / Medium / Red-flag) | Click | Fills all inputs from the labelled synthetic persona | E2E: medium fills family history = diabetes; all three personas produce distinct bands | PASS |
+| 29 | Prevent · Inputs | Clear all button | Click | Resets all selects + urgent checkbox | Code path present | PASS |
+| 30 | Prevent · Inputs | Age band / family history / lifestyle / marker selects (12) | Select | Values feed the profiler; every field except consent optional; "Not known" is a first-class answer | Unit tests: family-history isolation, unknown adds 0 | PASS |
+| 31 | Prevent · Inputs | Urgent-now checkbox | Check | Flags the result urgent — the ONLY route to the urgent screen; never a score | Unit tests: urgent only from checkbox | PASS |
+| 32 | Prevent · Inputs | See my signals button | Click | Computes signals, renders 3 module cards with score/level/contributions | E2E: medium 53/42/28, family history listed | PASS |
+| 33 | Prevent · Signals | Signal cards (3) | (rendered) | Score /100, level (Lower/Review/Strong), per-factor contributions with +points, or honest empty-state text; "not a diagnosis" panel present | E2E: low 0/0/0, medium 53, red-flag 100 | PASS |
+| 34 | Prevent · Signals | See my schedule button | Click | Builds the schedule from the worst band, renders next step + list + plan | E2E: 7 items, due dates verified | PASS |
+| 35 | Prevent · Schedule | Time-to-next-step line | (rendered) | Lower — none implied; Review — within 4 weeks; Strong — within 1 week; Urgent — now | E2E: Review 4 weeks, Urgent Now | PASS |
+| 36 | Prevent · Schedule | Next-step guidance | (rendered) | Band-specific guidance (self-care / primary-care navigation / promptly / urgent), never a diagnosis | Unit tests: per-band text | PASS |
+| 37 | Prevent · Schedule | Schedule check-off boxes (7) | Check | Ticks an item done; referral counter moves (0 of 7 → N of 7); in-memory only, resets on close — stated on the page | E2E: 2 ticks → "2 of 7" | PASS |
+| 38 | Prevent · Schedule | Schedule rows | (rendered) | Name, interval (annual / 2-yearly / 5-yearly / 6-monthly), due date from today, pathway, "linked to your inputs" flag where a factor moved the score | E2E: bp annual Nov 2027 (Review), 2-yearly Nov 2028 (Lower) | PASS |
+| 39 | Prevent · Schedule | Urgent deferral | (rendered) | Urgent checkbox → schedule deferred, no dates set, urgent notice shown | E2E: red-flag persona deferred | PASS |
+| 40 | Prevent · Schedule | Copy / Download .md / Print plan buttons | Click | Same pattern as the triage handoff (clipboard + fallback, Blob download, print shows the plan only) | Code path present; print CSS extended | PASS* |
+| 41 | Prevent · Schedule | Read the documentation button | Click | Advances to Documentation step | E2E: docs step shown | PASS |
+| 42 | Prevent · Docs | Assumptions / Limitations / Data-use | (rendered) | On the product itself, not only in the submission form | E2E: both headings present | PASS |
+| 43 | Prevent · Docs | Start again button | Click | Resets all inputs + consent, returns to Consent step | E2E: consent shown, Continue disabled | PASS |
+| 44 | Prevent · Steps | Back buttons (4) | Click | Return to the previous step without losing inputs | E2E: signals → inputs → low persona re-run | PASS |
+| 45 | Prevent · Steps | Step indicator (Consent/Inputs/Signals/Schedule/Docs) | (rendered) | Current step highlighted with aria-current="step" | Code path present | PASS |
 
 \* PASS* = implemented + code-reviewed + unit/E2E-verified where the headless
 environment allows; the remaining step is a live-browser check after deploy
 (voice service, clipboard, print dialog are browser/OS features, not app logic).
 
 ## Known issues
-- None open. Two issues found during QA and fixed before release: (1) red-flag
+- None open. Three issues found during QA and fixed before release: (1) red-flag
   force applied to any matched red-flag entry — now only the winning entry
   forces RED (unit tests caught it, 43/45 → 45/45); (2) missing favicon caused
-  a 404 console error — fixed with an inline SVG favicon (E2E 21/21, 0 errors).
+  a 404 console error — fixed with an inline SVG favicon (E2E 21/21, 0 errors);
+  (3) Prevent scheduler test used the red-flag persona with its urgent box
+  ticked, so the schedule was correctly deferred and the interval lookup found
+  no items — test fixed to use the same inputs without the urgent box
+  (unit tests caught it, 38/39 → 39/39).
 - Voice input depends on the browser's built-in speech service (Chrome/Edge);
   it is an optional enhancement and the UI says so. Typing is primary.
+- Prevent schedule check-off is in-memory only (resets when the page closes);
+  the page states this. Nothing is stored online — by design, not a gap.

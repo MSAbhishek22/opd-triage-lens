@@ -205,6 +205,185 @@ test('parseDays: numeric and word durations', () => {
 });
 
 // ---------------------------------------------------------------------------
+// 6. Prevent mode — profiler (prevent.js, added 18 Nov 2026)
+// ---------------------------------------------------------------------------
+const prevent = require('../prevent.js');
+
+test('prevent: score bands — 34 Lower, 35 Review, 64 Review, 65 Strong', () => {
+  assert.strictEqual(prevent.levelForScore(0).key, 'lower');
+  assert.strictEqual(prevent.levelForScore(34).key, 'lower');
+  assert.strictEqual(prevent.levelForScore(35).key, 'review');
+  assert.strictEqual(prevent.levelForScore(64).key, 'review');
+  assert.strictEqual(prevent.levelForScore(65).key, 'strong');
+  assert.strictEqual(prevent.levelForScore(100).key, 'strong');
+});
+
+test('prevent: consent gate — Continue only when both boxes are checked', () => {
+  assert.strictEqual(prevent.canContinue(true, true), true);
+  assert.strictEqual(prevent.canContinue(true, false), false);
+  assert.strictEqual(prevent.canContinue(false, true), false);
+  assert.strictEqual(prevent.canContinue(false, false), false);
+});
+
+test('prevent: low persona — every module 0, worst Lower, not urgent', () => {
+  const r = prevent.computeSignals(prevent.PERSONAS.low);
+  assert.deepStrictEqual(r.modules.map((m) => m.score), [0, 0, 0]);
+  assert.deepStrictEqual(r.modules.map((m) => m.level.key), ['lower', 'lower', 'lower']);
+  assert.strictEqual(r.worst, 'lower');
+  assert.strictEqual(r.urgent, false);
+});
+
+test('prevent: medium persona — metabolic 53, cardio 42 (Review), sleep 28 (Lower)', () => {
+  const r = prevent.computeSignals(prevent.PERSONAS.medium);
+  assert.deepStrictEqual(r.modules.map((m) => m.score), [53, 42, 28]);
+  assert.deepStrictEqual(r.modules.map((m) => m.level.key), ['review', 'review', 'lower']);
+  assert.strictEqual(r.worst, 'review');
+  assert.strictEqual(r.urgent, false);
+});
+
+test('prevent: red-flag persona — metabolic + cardio capped at 100 (Strong), sleep 64, urgent', () => {
+  const r = prevent.computeSignals(prevent.PERSONAS.redflag);
+  assert.deepStrictEqual(r.modules.map((m) => m.score), [100, 100, 64]);
+  assert.deepStrictEqual(r.modules.map((m) => m.level.key), ['strong', 'strong', 'review']);
+  assert.strictEqual(r.worst, 'strong');
+  assert.strictEqual(r.urgent, true);
+});
+
+test('prevent: contributions name the exact inputs that moved the score', () => {
+  const r = prevent.computeSignals(prevent.PERSONAS.medium);
+  const metabolic = r.modules[0].contributions;
+  assert.strictEqual(metabolic.length, 5);
+  assert.ok(metabolic.some((c) => c.label === 'Age band 45–59' && c.points === 10));
+  assert.ok(metabolic.some((c) => c.label === 'Family history — diabetes' && c.points === 10));
+  assert.ok(metabolic.some((c) => c.label === 'Low physical activity' && c.points === 15));
+  assert.strictEqual(r.modules[0].contributions.reduce((s, c) => s + c.points, 0), 53);
+});
+
+test('prevent: family history stays in its own module — diabetes metabolic only, heart cardio only', () => {
+  const base = { ageBand: '30-44', activity: 'high', smoking: 'never', sleep: '7-9',
+    stress: 'low', diet: 'plant', sitting: 'lt4', bp: 'normal', sugar: 'normal',
+    bmi: 'lt25', chol: 'normal', urgentNow: false };
+  const withDiabetes = prevent.computeSignals(Object.assign({}, base, { familyHistory: 'diabetes' }));
+  assert.strictEqual(withDiabetes.modules[0].score, 10);
+  assert.strictEqual(withDiabetes.modules[1].score, 0);
+  const withHeart = prevent.computeSignals(Object.assign({}, base, { familyHistory: 'heart' }));
+  assert.strictEqual(withHeart.modules[0].score, 0);
+  assert.strictEqual(withHeart.modules[1].score, 12);
+});
+
+test('prevent: empty inputs score 0 everywhere and list no contributors', () => {
+  const r = prevent.computeSignals({});
+  assert.deepStrictEqual(r.modules.map((m) => m.score), [0, 0, 0]);
+  r.modules.forEach((m) => assert.strictEqual(m.contributions.length, 0));
+  assert.strictEqual(r.worst, 'lower');
+  assert.strictEqual(r.urgent, false);
+});
+
+test('prevent: urgent screen comes only from the checkbox, never from a score', () => {
+  const strongNoUrgent = prevent.computeSignals(prevent.PERSONAS.redflag);
+  strongNoUrgent.urgent = false;
+  const noUrgent = prevent.computeSignals(Object.assign({}, prevent.PERSONAS.redflag, { urgentNow: false }));
+  assert.strictEqual(noUrgent.urgent, false);
+  assert.strictEqual(noUrgent.worst, 'strong');
+  const lowUrgent = prevent.computeSignals(Object.assign({}, prevent.PERSONAS.low, { urgentNow: true }));
+  assert.strictEqual(lowUrgent.urgent, true);
+  assert.strictEqual(lowUrgent.worst, 'lower');
+});
+
+// ---------------------------------------------------------------------------
+// 7. Prevent mode — scheduler + next step + summary
+// ---------------------------------------------------------------------------
+test('prevent: scheduler intervals follow the worst band (bp check 24 / 12 / 6 months)', () => {
+  const assessed = new Date(2026, 10, 18); // 18 Nov 2026
+  const lower = prevent.buildSchedule(prevent.computeSignals(prevent.PERSONAS.low), assessed);
+  const review = prevent.buildSchedule(prevent.computeSignals(prevent.PERSONAS.medium), assessed);
+  // Red-flag persona has the urgent box ticked, which defers the schedule —
+  // use the same inputs without the urgent box for the Strong-band schedule.
+  const strong = prevent.buildSchedule(
+    prevent.computeSignals(Object.assign({}, prevent.PERSONAS.redflag, { urgentNow: false })), assessed);
+  assert.strictEqual(lower.deferred, false);
+  assert.strictEqual(lower.items.length, 7);
+  const bp = (s) => s.items.find((i) => i.id === 'bp-check');
+  assert.strictEqual(bp(lower).months, 24);
+  assert.strictEqual(bp(review).months, 12);
+  assert.strictEqual(bp(strong).months, 6);
+  assert.strictEqual(bp(lower).dueLabel, 'Nov 2028');
+  assert.strictEqual(bp(review).dueLabel, 'Nov 2027');
+  assert.strictEqual(bp(strong).dueLabel, 'May 2027');
+  assert.strictEqual(bp(lower).intervalLabel, 'every 2 years');
+  assert.strictEqual(bp(review).intervalLabel, 'annual');
+  assert.strictEqual(bp(strong).intervalLabel, 'every 6 months');
+});
+
+test('prevent: scheduler links items to the inputs that moved the score', () => {
+  const assessed = new Date(2026, 10, 18);
+  const s = prevent.buildSchedule(prevent.computeSignals(prevent.PERSONAS.medium), assessed);
+  const bp = s.items.find((i) => i.id === 'bp-check');
+  assert.strictEqual(bp.linked, true); // medium persona has elevated BP
+  const sugar = s.items.find((i) => i.id === 'sugar-check');
+  assert.strictEqual(sugar.linked, false); // medium persona sugar is normal
+  const low = prevent.buildSchedule(prevent.computeSignals(prevent.PERSONAS.low), assessed);
+  low.items.forEach((i) => assert.strictEqual(i.linked, false));
+});
+
+test('prevent: scheduler pathways follow the band; urgent defers the whole schedule', () => {
+  const assessed = new Date(2026, 10, 18);
+  const lower = prevent.buildSchedule(prevent.computeSignals(prevent.PERSONAS.low), assessed);
+  const review = prevent.buildSchedule(prevent.computeSignals(prevent.PERSONAS.medium), assessed);
+  const strong = prevent.buildSchedule(prevent.computeSignals(Object.assign({}, prevent.PERSONAS.redflag, { urgentNow: false })), assessed);
+  assert.ok(lower.items[0].pathway.indexOf('Self-care') !== -1);
+  assert.ok(review.items[0].pathway.indexOf('Primary-care navigation') !== -1);
+  assert.ok(strong.items[0].pathway.indexOf('promptly') !== -1);
+  const urgent = prevent.buildSchedule(prevent.computeSignals(prevent.PERSONAS.redflag), assessed);
+  assert.strictEqual(urgent.deferred, true);
+  assert.deepStrictEqual(urgent.items, []);
+  assert.strictEqual(urgent.nextStep.key, 'urgent');
+});
+
+test('prevent: time to next step — lower none, review 4 weeks, strong 1 week, urgent now', () => {
+  const low = prevent.nextStepFor(prevent.computeSignals(prevent.PERSONAS.low));
+  const review = prevent.nextStepFor(prevent.computeSignals(prevent.PERSONAS.medium));
+  const strong = prevent.nextStepFor(prevent.computeSignals(Object.assign({}, prevent.PERSONAS.redflag, { urgentNow: false })));
+  const urgent = prevent.nextStepFor(prevent.computeSignals(prevent.PERSONAS.redflag));
+  assert.strictEqual(low.within, 'No appointment implied');
+  assert.strictEqual(review.within, 'Within 4 weeks');
+  assert.strictEqual(strong.within, 'Within 1 week');
+  assert.strictEqual(urgent.within, 'Now');
+});
+
+test('prevent: summary carries the screening boundary, scores, schedule and due dates', () => {
+  const assessed = new Date(2026, 10, 18);
+  const res = prevent.computeSignals(prevent.PERSONAS.medium);
+  const sched = prevent.buildSchedule(res, assessed);
+  const md = prevent.buildPreventSummary(res, prevent.PERSONAS.medium, sched);
+  assert.ok(md.indexOf('not a diagnosis') !== -1);
+  assert.ok(md.indexOf('Review') !== -1);
+  assert.ok(md.indexOf('53/100') !== -1);
+  assert.ok(md.indexOf('Blood pressure check') !== -1);
+  assert.ok(md.indexOf('Nov 2027') !== -1);
+  assert.ok(md.indexOf('Within 4 weeks') !== -1);
+  assert.ok(md.indexOf('Family history') !== -1);
+});
+
+test('prevent: next-step guidance is distinct per band and never diagnoses', () => {
+  const urgent = prevent.buildTriageHtml(prevent.computeSignals(prevent.PERSONAS.redflag));
+  assert.ok(urgent.indexOf('Urgent') !== -1);
+  assert.ok(urgent.indexOf('emergency number') !== -1);
+  const lower = prevent.buildTriageHtml(prevent.computeSignals(prevent.PERSONAS.low));
+  assert.ok(lower.indexOf('self-care') !== -1);
+  assert.ok(lower.indexOf('not a diagnosis') !== -1);
+  const review = prevent.buildTriageHtml(prevent.computeSignals(prevent.PERSONAS.medium));
+  assert.ok(review.indexOf('primary-care') !== -1);
+});
+
+test('prevent: empty-state wording separates "nothing entered" from "entered, no points"', () => {
+  const none = prevent.emptyStateText('metabolic', {});
+  assert.ok(none.indexOf('No inputs were provided') !== -1);
+  const entered = prevent.emptyStateText('metabolic', prevent.PERSONAS.low);
+  assert.ok(entered.indexOf('No contributing risk factors') !== -1);
+});
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 console.log('\nOPD Triage Lens — test results');

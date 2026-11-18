@@ -19,7 +19,8 @@
       <span class="brand-tag">OPD / 04</span>
     </a>
     <nav class="top-nav" aria-label="Sections">
-      <a href="#intake">Triage</a>
+      <a href="#intake" data-mode="triage">Triage</a>
+      <a href="#prevent" data-mode="prevent">Prevent</a>
       <a href="#dial">The dial</a>
       <a href="#corpus">Rule book</a>
       <a href="#how">How it works</a>
@@ -35,7 +36,11 @@
       <p class="eyebrow">Future Health · Statement #4 Precision Prevention &amp; Screening · Statement #5 Closing the Screening-to-Care Loop</p>
       <h1>The OPD queue,<br>sorted by <em>urgency</em> —<br>not by arrival.</h1>
       <p class="hero-hi" lang="hi">लक्षण बताइए — हम बताएँगे कि कितनी जल्दी दिखाना है।</p>
-      <p class="lede">Type symptoms in Hinglish or English. A deterministic rule engine — no model, no guess — assigns one of four colours, tells you which OPD slot to take, and writes the handoff summary your doctor actually wants to read.</p>
+      <p class="lede">Type symptoms in Hinglish or English. A deterministic rule engine — no model, no guess — assigns one of four colours, tells you which OPD slot to take, and writes the handoff summary your doctor actually wants to read. And when you have no symptoms at all, <strong>Prevent</strong> checks the signals that come before symptoms — an interactive risk profiler and a screening schedule, built the same transparent way.</p>
+      <div class="mode-switch" role="group" aria-label="Choose a mode">
+        <button type="button" id="modeTriageBtn" class="mode-btn active" aria-pressed="true">Triage — symptoms now</button>
+        <button type="button" id="modePreventBtn" class="mode-btn" aria-pressed="false">Prevent — risk check</button>
+      </div>
       <div class="band" role="list" aria-label="Triage colours">
         <div class="band-chip red" role="listitem"><span class="dot"></span><strong>RED</strong><span>Emergency · now</span></div>
         <div class="band-chip amber" role="listitem"><span class="dot"></span><strong>AMBER</strong><span>Urgent · today</span></div>
@@ -188,6 +193,222 @@
     </div>
   </section>
 
+  <!-- PREVENT MODE -->
+  <section id="prevent" class="prevent-section" hidden>
+    <div class="wrap">
+      <p class="section-no">06 — Prevent</p>
+      <h2>Check your preventive signals —<br>before symptoms start.</h2>
+      <p class="lede">An interactive risk profiler and a screening scheduler, built the same transparent way as triage: a weighted score you can audit line by line, and a dated schedule of the preventive checks that fit your signals. No model, no server, nothing leaves this page.</p>
+      <p class="disclaimer" role="note"><strong>Not a diagnosis.</strong> Prevent is screening only. It never identifies a disease or condition, never prescribes, and never replaces a clinician.</p>
+
+      <ol class="prevent-steps" id="preventSteps" aria-label="Prevent journey progress">
+        <li data-step="consent" aria-current="step">Consent</li>
+        <li data-step="inputs">Inputs</li>
+        <li data-step="signals">Signals</li>
+        <li data-step="schedule">Schedule</li>
+        <li data-step="docs">Documentation</li>
+      </ol>
+
+      <!-- STEP A: CONSENT -->
+      <div class="prevent-step" id="preventConsent">
+        <h3>Before you start: consent</h3>
+        <p>This check runs entirely in your browser. Nothing you enter is sent to a server, stored online, or shared with anyone. There is no account and no backend.</p>
+        <p><strong>Important boundary:</strong> this is a screening aid only. It is <strong>not a diagnosis</strong>, it does not identify any disease or condition, and it must not be used as medical advice.</p>
+        <p><strong>Who this is for:</strong> adults aged 18 and over. It does not assess children — for a child, the right next step is a Well-Child Visit; ask a clinician about it.</p>
+        <fieldset class="p-fieldset">
+          <legend>Please confirm both statements to continue</legend>
+          <label><input type="checkbox" id="pConsentScreening"> I understand this is screening only, not a diagnosis, and not medical advice.</label>
+          <label><input type="checkbox" id="pConsentLocal"> I understand my inputs stay in this browser and are not sent anywhere.</label>
+        </fieldset>
+        <p class="fine" id="pConsentNote">Continue stays disabled until both boxes are checked.</p>
+        <button type="button" id="pConsentBtn" class="btn primary big" disabled>Continue to inputs</button>
+      </div>
+
+      <!-- STEP B: INPUTS -->
+      <div class="prevent-step" id="preventInputs" hidden>
+        <h3>Your inputs</h3>
+        <p>Every field except consent is optional. Choose an age <strong>band</strong> — never enter a birth date. If you do not know a marker, leave it as “Not known”.</p>
+        <div class="demo-bar" role="group" aria-label="Synthetic demo personas">
+          <p><strong>Synthetic demo data only — no real patient data:</strong></p>
+          <button type="button" class="chip" data-persona="low">Load synthetic: Low</button>
+          <button type="button" class="chip" data-persona="medium">Load synthetic: Medium</button>
+          <button type="button" class="chip" data-persona="redflag">Load synthetic: Red-flag</button>
+          <button type="button" class="chip" id="pClearBtn">Clear all</button>
+        </div>
+        <div class="prevent-grid">
+          <fieldset class="p-fieldset">
+            <legend>About you</legend>
+            <label class="field-label" for="pAgeBand">Age band</label>
+            <select id="pAgeBand">
+              <option value="">Not provided</option>
+              <option value="18-29">18–29</option>
+              <option value="30-44">30–44</option>
+              <option value="45-59">45–59</option>
+              <option value="60+">60+</option>
+            </select>
+            <label class="field-label" for="pFamilyHistory">Family history — parents or siblings (broad categories only)</label>
+            <select id="pFamilyHistory">
+              <option value="unknown">Not known</option>
+              <option value="none">None known</option>
+              <option value="diabetes">Diabetes</option>
+              <option value="heart">Heart disease</option>
+              <option value="both">Both diabetes and heart disease</option>
+            </select>
+          </fieldset>
+          <fieldset class="p-fieldset">
+            <legend>Lifestyle factors</legend>
+            <label class="field-label" for="pActivity">Physical activity</label>
+            <select id="pActivity">
+              <option value="">Not provided</option>
+              <option value="low">Low — rarely active</option>
+              <option value="mod">Moderate — active some days</option>
+              <option value="high">High — active most days</option>
+            </select>
+            <label class="field-label" for="pSmoking">Smoking</label>
+            <select id="pSmoking">
+              <option value="">Not provided</option>
+              <option value="never">Never smoked</option>
+              <option value="former">Former smoker</option>
+              <option value="current">Current smoker</option>
+            </select>
+            <label class="field-label" for="pSleep">Usual sleep per night</label>
+            <select id="pSleep">
+              <option value="">Not provided</option>
+              <option value="lt6">Less than 6 hours</option>
+              <option value="6-7">6–7 hours</option>
+              <option value="7-9">7–9 hours</option>
+              <option value="gt9">More than 9 hours</option>
+            </select>
+            <label class="field-label" for="pStress">Usual stress level</label>
+            <select id="pStress">
+              <option value="">Not provided</option>
+              <option value="low">Low</option>
+              <option value="mod">Moderate</option>
+              <option value="high">High</option>
+            </select>
+            <label class="field-label" for="pDiet">Usual diet pattern</label>
+            <select id="pDiet">
+              <option value="">Not provided</option>
+              <option value="plant">Mostly plant-based</option>
+              <option value="mixed">Mixed</option>
+              <option value="processed">Mostly processed foods</option>
+            </select>
+            <label class="field-label" for="pSitting">Sitting time per day</label>
+            <select id="pSitting">
+              <option value="">Not provided</option>
+              <option value="lt4">Less than 4 hours</option>
+              <option value="4-8">4–8 hours</option>
+              <option value="gt8">More than 8 hours</option>
+            </select>
+          </fieldset>
+          <fieldset class="p-fieldset">
+            <legend>Known markers (optional — only if you already know them)</legend>
+            <label class="field-label" for="pBp">Blood pressure, if known</label>
+            <select id="pBp">
+              <option value="unknown">Not known</option>
+              <option value="normal">Normal range</option>
+              <option value="elevated">Elevated</option>
+              <option value="high">High</option>
+            </select>
+            <label class="field-label" for="pSugar">Blood sugar, if known</label>
+            <select id="pSugar">
+              <option value="unknown">Not known</option>
+              <option value="normal">Normal range</option>
+              <option value="elevated">Elevated</option>
+            </select>
+            <label class="field-label" for="pBmi">Weight band, if known</label>
+            <select id="pBmi">
+              <option value="unknown">Not known</option>
+              <option value="lt25">BMI under 25</option>
+              <option value="25-30">BMI 25–30</option>
+              <option value="gt30">BMI over 30</option>
+            </select>
+            <label class="field-label" for="pChol">Cholesterol, if known</label>
+            <select id="pChol">
+              <option value="unknown">Not known</option>
+              <option value="normal">Normal range</option>
+              <option value="high">High</option>
+            </select>
+          </fieldset>
+          <fieldset class="p-fieldset urgent-field">
+            <legend>Right now</legend>
+            <label><input type="checkbox" id="pUrgentNow"> I am experiencing worrying symptoms right now, such as chest pain, severe breathlessness, or sudden weakness.</label>
+            <p class="fine"><strong>If this is an emergency, call your local emergency number now.</strong> This tool cannot help in an emergency and does not replace emergency services.</p>
+          </fieldset>
+        </div>
+        <div class="nav-row">
+          <button type="button" class="btn ghost" data-back="consent">Back</button>
+          <button type="button" class="btn primary" id="pSignalsBtn">See my signals →</button>
+        </div>
+      </div>
+
+      <!-- STEP C: SIGNALS -->
+      <div class="prevent-step" id="preventSignals" hidden>
+        <h3>Your signals</h3>
+        <p>Each score is built from the inputs listed underneath it, so you can see exactly what moved it. Scores run 0–100; higher means a stronger signal to review, not a worse verdict. Under 35 is Lower, 35–64 is Review, 65 and over is Strong.</p>
+        <div class="panel not-panel">
+          <h3>What this is not</h3>
+          <p>These are screening signals only. They are <strong>not a diagnosis</strong>, they do not identify any disease or condition, and they are not medical advice. A “Lower” result does not rule anything out, and a higher result does not mean something is wrong.</p>
+        </div>
+        <div id="pSignalCards" class="signal-grid"></div>
+        <div class="nav-row">
+          <button type="button" class="btn ghost" data-back="inputs">Back to inputs</button>
+          <button type="button" class="btn primary" id="pScheduleBtn">See my schedule →</button>
+        </div>
+      </div>
+
+      <!-- STEP D: SCHEDULE -->
+      <div class="prevent-step" id="preventSchedule" hidden>
+        <h3>Your schedule &amp; next step</h3>
+        <p id="pNextStep" class="next-step" role="status"></p>
+        <div id="pTriageBody" class="triage-body"></div>
+        <h3>Preventive screening schedule</h3>
+        <p class="fine">Due dates count forward from today. Tick a check off when it is done — the checklist lives only in this page and resets when you close it; nothing is stored online.</p>
+        <p id="pReferralCount" class="referral-count" role="status"></p>
+        <ul id="pScheduleList" class="schedule-list"></ul>
+        <h3 class="handoff-title">Prevention plan — show or print this</h3>
+        <pre id="pSummaryText" class="handoff"></pre>
+        <div class="handoff-actions">
+          <button id="pCopyBtn" class="btn ghost" type="button">Copy plan</button>
+          <button id="pDownloadBtn" class="btn ghost" type="button">Download .md</button>
+          <button id="pPrintBtn" class="btn ghost" type="button">Print</button>
+          <span id="pCopyMsg" class="copy-msg" role="status"></span>
+        </div>
+        <div class="nav-row">
+          <button type="button" class="btn ghost" data-back="signals">Back to signals</button>
+          <button type="button" class="btn primary" id="pDocsBtn">Read the documentation →</button>
+        </div>
+      </div>
+
+      <!-- STEP E: DOCS -->
+      <div class="prevent-step" id="preventDocs" hidden>
+        <h3>Documentation — for clinicians</h3>
+        <h3>Assumptions</h3>
+        <ul>
+          <li>All inputs are self-reported and may be incomplete or approximate; unknown values add no points and are shown as “not provided”.</li>
+          <li>Scores are transparent, rule-based sums of the listed factors — not a statistical model, not trained on patient data, and not validated clinically.</li>
+          <li>Thresholds are deliberately simple: under 35 = Lower, 35–64 = Review, 65 and over = Strong. They are triage prompts, not clinical cut-offs.</li>
+          <li>Family history is asked only in broad categories (diabetes / heart disease in parents or siblings) — never in detail.</li>
+          <li>This is a local, single-page prototype with no server, no account, and no data storage beyond this browser session.</li>
+        </ul>
+        <h3>Limitations</h3>
+        <ul>
+          <li>This is screening only, not a diagnosis, and not medical advice. It cannot rule anything in or out.</li>
+          <li>It does not consider medicines, pregnancy, or any condition you may already have — tell a clinician about those directly.</li>
+          <li>It identifies signals for one person at a time; it does not combine population or community signals, and it does not assess children — for a child, the right next step is a Well-Child Visit (see the consent screen).</li>
+          <li>It has not been reviewed or endorsed by any clinician, clinic, or health authority. No partnership or endorsement is claimed.</li>
+          <li>Results depend entirely on what you entered; different inputs give different signals, and that is expected.</li>
+        </ul>
+        <h3>Data-use statement</h3>
+        <p>Your inputs stay in this browser. Nothing is sent to a server, no account is created, and nothing is stored online. Closing this page discards the inputs. If a future version ever added a server, that change would need a new consent screen first.</p>
+        <div class="nav-row">
+          <button type="button" class="btn ghost" data-back="schedule">Back to schedule</button>
+          <button type="button" class="btn primary" id="pRestartBtn">Start again</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- HOW IT WORKS -->
   <section id="how" class="how">
     <div class="wrap">
@@ -198,6 +419,13 @@
         <li><strong>2 · Second look.</strong> Four combination rules run — chest pain + breathlessness is an emergency even though chest pain alone is not. This is the part a keyword list alone gets wrong.</li>
         <li><strong>3 · Modifiers.</strong> Duration (fever 3+ days), age group (child with fever) and vitals (SpO2 under 92%) adjust the verdict — each by an explicit, listed rule.</li>
         <li><strong>4 · Handoff.</strong> The verdict, the matched rule, the confidence band and the slot advice are written into a structured summary for the doctor — with the refusal path kept open.</li>
+      </ol>
+      <h3>How Prevent works</h3>
+      <ol class="steps">
+        <li><strong>1 · Consent.</strong> Two checkboxes — screening-only, local-only — before any input is entered. Continue stays disabled until both are checked.</li>
+        <li><strong>2 · Inputs.</strong> Age band, family history in broad categories, lifestyle factors, and markers you already know. Every field except consent is optional; “Not known” is a first-class answer.</li>
+        <li><strong>3 · Signals.</strong> Three weighted scores (metabolic, cardiovascular, sleep/stress), each with the exact inputs that moved it listed underneath. The urgent screen comes only from the “worrying symptoms right now” checkbox — never from a score.</li>
+        <li><strong>4 · Schedule.</strong> A dated list of preventive checks — annual, 2-yearly or 5-yearly by risk band — with referral pathways and a check-off list, plus a prevention plan you can carry to a clinician.</li>
       </ol>
       <div class="how-grid">
         <div>
@@ -226,7 +454,7 @@
 
 <footer class="foot">
   <div class="wrap">
-    <p><strong>OPD Triage Lens</strong> — built solo by M S Abhishek (Shobhit University, Meerut) for the Future Health Digital Innovation Challenge 2026. Prototype due 20 Nov 2026.</p>
+    <p><strong>OPD Triage Lens</strong> — built solo by M S Abhishek (Shobhit University, Meerut) for the Future Health Digital Innovation Challenge 2026. Two modes: <strong>Triage</strong> sorts the symptoms you have now; <strong>Prevent</strong> checks the signals that come before symptoms. Prototype due 20 Nov 2026.</p>
     <p class="disclaimer" role="note"><strong>Not a diagnosis.</strong> OPD Triage Lens triages urgency for OPD flow only. In an emergency, call 108.</p>
     <p class="fine">Deterministic rules only · No backend · No model · No data leaves your device · MIT licence</p>
   </div>
@@ -234,6 +462,7 @@
 
 <script src="corpus.js"></script>
 <script src="engine.js"></script>
+<script src="prevent.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

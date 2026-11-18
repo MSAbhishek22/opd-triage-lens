@@ -326,6 +326,213 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Prevent mode — risk profiler + screening scheduler (v1.1, 18 Nov 2026)
+  // Runs in-page via window.OPD_PREVENT (prevent.js). Same local-first rules
+  // as triage: no model, no server, nothing leaves the device.
+  // ---------------------------------------------------------------------------
+  var P = window.OPD_PREVENT;
+  var PSTEPS = ['consent', 'inputs', 'signals', 'schedule', 'docs'];
+  var preventResult = null;
+  var preventInputs = null;
+  var preventSchedule = null;
+  var checkedItems = {};
+
+  function setMode(mode) {
+    var triage = mode === 'triage';
+    $('intake').hidden = !triage;
+    $('dial').hidden = !triage;
+    $('corpus').hidden = !triage;
+    $('prevent').hidden = triage;
+    $('modeTriageBtn').classList.toggle('active', triage);
+    $('modeTriageBtn').setAttribute('aria-pressed', triage ? 'true' : 'false');
+    $('modePreventBtn').classList.toggle('active', !triage);
+    $('modePreventBtn').setAttribute('aria-pressed', triage ? 'false' : 'true');
+    document.querySelector('.skip').setAttribute('href', triage ? '#intake' : '#prevent');
+    if (!triage) showPreventStep('consent');
+  }
+
+  function showPreventStep(name) {
+    PSTEPS.forEach(function (s) {
+      var el = $('prevent' + s.charAt(0).toUpperCase() + s.slice(1));
+      if (el) el.hidden = (s !== name);
+      var li = document.querySelector('#preventSteps li[data-step="' + s + '"]');
+      if (li) { if (s === name) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current'); }
+    });
+    var head = $('prevent' + name.charAt(0).toUpperCase() + name.slice(1));
+    if (head) head.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function readPreventInputs() {
+    var out = { urgentNow: !!$('pUrgentNow').checked };
+    P.INPUT_IDS.forEach(function (id) {
+      var el = $('p' + id.charAt(0).toUpperCase() + id.slice(1));
+      out[id] = el ? el.value : '';
+    });
+    return out;
+  }
+
+  function renderPreventSignals() {
+    preventInputs = readPreventInputs();
+    preventResult = P.computeSignals(preventInputs);
+    var wrap = $('pSignalCards');
+    wrap.innerHTML = '';
+    preventResult.modules.forEach(function (m) {
+      var card = document.createElement('article');
+      card.className = 'signal-card level-' + m.level.key;
+      var reasons = m.contributions.length
+        ? '<ul>' + m.contributions.map(function (c) {
+            return '<li>' + c.label + ' (+' + c.points + ')</li>';
+          }).join('') + '</ul>'
+        : '<p>' + P.emptyStateText(m.id, preventInputs) + '</p>';
+      card.innerHTML = '<h3>' + m.name + '</h3>'
+        + '<p class="signal-level">' + m.level.icon + ' ' + m.level.label
+        + ' — <span class="score">' + m.score + '</span> / 100</p>'
+        + '<p><strong>What moved this score:</strong></p>' + reasons
+        + '<p><em>What this is not: a screening signal only, not a diagnosis.</em></p>';
+      wrap.appendChild(card);
+    });
+  }
+
+  function renderPreventSchedule() {
+    preventSchedule = P.buildSchedule(preventResult, new Date());
+    var next = preventSchedule.nextStep;
+    $('pNextStep').innerHTML = '<strong>Next step: ' + next.label + '.</strong> Time to next step: <strong>' + next.within + '</strong> — ' + next.note;
+    $('pTriageBody').innerHTML = P.buildTriageHtml(preventResult);
+    var list = $('pScheduleList');
+    list.innerHTML = '';
+    checkedItems = {};
+    if (preventSchedule.deferred) {
+      $('pReferralCount').textContent = 'Screening schedule deferred — urgent care comes first. Revisit this schedule after urgent care.';
+      var li = document.createElement('li');
+      li.className = 'schedule-deferred';
+      li.textContent = 'No screening dates are set while urgent care is the next step. The schedule will be built from your signals once urgent care is done.';
+      list.appendChild(li);
+    } else {
+      updateReferralCount();
+      preventSchedule.items.forEach(function (it) {
+        var row = document.createElement('li');
+        row.className = 'schedule-row';
+        var label = document.createElement('label');
+        var box = document.createElement('input');
+        box.type = 'checkbox';
+        box.setAttribute('aria-label', 'Mark ' + it.name + ' as done');
+        box.addEventListener('change', function () {
+          checkedItems[it.id] = box.checked;
+          updateReferralCount();
+        });
+        var name = document.createElement('span');
+        name.className = 'schedule-name';
+        name.textContent = it.name;
+        var meta = document.createElement('span');
+        meta.className = 'schedule-meta';
+        meta.textContent = it.intervalLabel + ' · due by ' + it.dueLabel + ' · ' + it.pathway + (it.linked ? ' · linked to your inputs' : '');
+        var why = document.createElement('span');
+        why.className = 'schedule-why';
+        why.textContent = it.why;
+        label.appendChild(box);
+        label.appendChild(name);
+        row.appendChild(label);
+        row.appendChild(meta);
+        row.appendChild(why);
+        list.appendChild(row);
+      });
+    }
+    $('pSummaryText').textContent = P.buildPreventSummary(preventResult, preventInputs, preventSchedule);
+    $('pCopyMsg').textContent = '';
+  }
+
+  function updateReferralCount() {
+    var total = preventSchedule ? preventSchedule.items.length : 0;
+    var done = Object.keys(checkedItems).filter(function (k) { return checkedItems[k]; }).length;
+    $('pReferralCount').textContent = 'Referrals completed: ' + done + ' of ' + total + ' checks done.';
+  }
+
+  function setupPrevent() {
+    on($('modeTriageBtn'), 'click', function () {
+      setMode('triage');
+      $('intake').scrollIntoView({ behavior: 'smooth' });
+    });
+    on($('modePreventBtn'), 'click', function () {
+      setMode('prevent');
+      $('prevent').scrollIntoView({ behavior: 'smooth' });
+    });
+    document.querySelectorAll('.top-nav a[data-mode]').forEach(function (a) {
+      a.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        setMode(a.getAttribute('data-mode'));
+        var target = a.getAttribute('data-mode') === 'prevent' ? $('prevent') : $('intake');
+        target.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    var c1 = $('pConsentScreening');
+    var c2 = $('pConsentLocal');
+    var btn = $('pConsentBtn');
+    function refreshConsent() { btn.disabled = !P.canContinue(c1.checked, c2.checked); }
+    on(c1, 'change', refreshConsent);
+    on(c2, 'change', refreshConsent);
+    on(btn, 'click', function () { showPreventStep('inputs'); });
+
+    document.querySelectorAll('#prevent [data-back]').forEach(function (b) {
+      b.addEventListener('click', function () { showPreventStep(b.getAttribute('data-back')); });
+    });
+    on($('pSignalsBtn'), 'click', function () {
+      renderPreventSignals();
+      showPreventStep('signals');
+    });
+    on($('pScheduleBtn'), 'click', function () {
+      renderPreventSchedule();
+      showPreventStep('schedule');
+    });
+    on($('pDocsBtn'), 'click', function () { showPreventStep('docs'); });
+    on($('pRestartBtn'), 'click', function () {
+      document.querySelectorAll('#prevent select').forEach(function (s) { s.selectedIndex = 0; });
+      document.querySelectorAll('#prevent input[type="checkbox"]').forEach(function (c) { c.checked = false; });
+      preventResult = null;
+      preventInputs = null;
+      preventSchedule = null;
+      checkedItems = {};
+      refreshConsent();
+      showPreventStep('consent');
+    });
+    on($('pClearBtn'), 'click', function () {
+      document.querySelectorAll('#preventInputs select').forEach(function (s) { s.selectedIndex = 0; });
+      $('pUrgentNow').checked = false;
+    });
+    document.querySelectorAll('#prevent [data-persona]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var p = P.PERSONAS[b.getAttribute('data-persona')];
+        P.INPUT_IDS.forEach(function (id) {
+          var el = $('p' + id.charAt(0).toUpperCase() + id.slice(1));
+          if (el) el.value = p[id] || '';
+        });
+        $('pUrgentNow').checked = !!p.urgentNow;
+      });
+    });
+
+    on($('pCopyBtn'), 'click', function () {
+      var text = $('pSummaryText').textContent;
+      function done() { $('pCopyMsg').textContent = 'Copied ✓'; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+      } else { fallbackCopy(text); done(); }
+    });
+    on($('pDownloadBtn'), 'click', function () {
+      var blob = new Blob([$('pSummaryText').textContent], { type: 'text/markdown' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'opd-prevention-plan.md';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+      $('pCopyMsg').textContent = 'Downloaded ✓';
+    });
+    on($('pPrintBtn'), 'click', function () { window.print(); });
+
+    setMode('triage');
+  }
+
+  // ---------------------------------------------------------------------------
   // Wire everything up
   // ---------------------------------------------------------------------------
   on($('triageBtn'), 'click', runTriage);
@@ -346,4 +553,5 @@
   setupDial();
   setupCorpus();
   setupMotion();
+  setupPrevent();
 })();

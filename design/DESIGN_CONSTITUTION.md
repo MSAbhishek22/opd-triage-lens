@@ -2,7 +2,7 @@
 
 **Project:** OPD Triage Lens — deterministic 4-colour symptom triage for Indian OPDs
 **Event:** Future Health Digital Innovation Challenge 2026 (statements #4/#5)
-**Author:** M S Abhishek · **Date:** 12 Nov 2026 · **Version:** 1.0
+**Author:** M S Abhishek · **Date:** 12 Nov 2026 · **Version:** 1.1 (Prevent mode added 18 Nov 2026)
 
 ## Personality & emotional tone
 Calm, clinical, accountable. A hospital OPD counter at 9 am — not a wellness app, not a chatbot. The product sorts, it never soothes with false certainty: when it does not know, it says so in plain language. Urgency is shown, not shouted; the only loud element is the red emergency band, and it earns its volume.
@@ -34,10 +34,18 @@ A patient (or their family member) in an Indian OPD queue, on a phone, often anx
 - Hierarchy: hero 2.4–4.2rem → section 1.7–2.4rem → card titles 16px → body 17px → meta 11–13px mono uppercase.
 
 ## Layout & grid
-Single page, max-width 1120px. Hero: full-width statement + 4-colour band + stats row. Counter: two columns (intake left, verdict right, sticky) collapsing to one under 960px. Dial: 380px disc + legend. Rule book: 3-column card grid (2 under 960px, 1 under 620px). Sections numbered 01–05 in mono — a counter-ticket device.
+Single page, max-width 1120px. Hero: full-width statement + 4-colour band + stats row + Triage/Prevent mode switch. Counter: two columns (intake left, verdict right, sticky) collapsing to one under 960px. Dial: 380px disc + legend. Rule book: 3-column card grid (2 under 960px, 1 under 620px). Prevent: five-step strip, two-column input fieldsets collapsing to one under 960px, three-column signal cards collapsing to one under 960px, single-column schedule list. Sections numbered 01–06 in mono — a counter-ticket device.
 
 ## Navigation & IA
-Sticky header: brand + 4 anchor links (Triage / The dial / Rule book / How it works) + low-motion toggle. Skip link first in tab order. One page, five sections, in the order a visitor thinks: understand → triage → see the dial → inspect the rules → understand the limits.
+Sticky header: brand + 5 anchor links (Triage / Prevent / The dial / Rule book / How it works) + low-motion toggle. Skip link first in tab order. One page, six sections, in the order a visitor thinks: understand → triage → see the dial → inspect the rules → understand the limits. A Triage / Prevent mode switch in the hero (and the header nav) swaps the triage sections for the Prevent section; the How section is shared by both modes.
+
+## Prevent mode (v1.1, 18 Nov 2026 — reviewer feedback)
+Same token-desk identity, same rules: square cards, 2px ink borders, mono data labels, the disclaimer in a red box on every result screen. The journey is a five-step strip (Consent → Inputs → Signals → Schedule → Documentation) with the current step filled ink-black.
+- **Consent:** two checkboxes, Continue disabled until both are checked — the gate is the interaction, not a note.
+- **Inputs:** the same fieldset language as triage (age band, family history in broad categories, lifestyle, known markers, "right now" urgent box in a red-bordered fieldset). Synthetic persona bar (Low / Medium / Red-flag) uses the pill-chip pattern from the triage quick chips.
+- **Signals:** three cards in the rule-card pattern, top border in the level colour (green Lower / amber Review / red Strong), mono score line, contributions as a plain list with +points — the audit trail is the design.
+- **Schedule:** a dated checklist — checkbox, name, mono meta line (interval · due date · pathway), one-line "why". Items linked to the inputs that moved the score carry a "linked to your inputs" flag. The referral counter is a mono status line. The urgent state is a red deferred panel, unmistakable.
+- **Prevention plan:** the same mono pre block + Copy / Download / Print actions as the triage handoff.
 
 ## Components & interaction patterns
 - Buttons: square, 2px ink border; primary is ink-on-paper; ghost is outlined. Hover lifts 1px (transform only).

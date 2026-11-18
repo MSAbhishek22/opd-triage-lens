@@ -16,6 +16,11 @@
 - Open the URL in a fresh browser session (not signed in to Vercel):
   stats show `34 / 45 / 100%`, all 34 rule cards render, triage a RED case
   (`seene me dard, saans phoolna`) → RED verdict + handoff.
+- **Prevent mode:** switch to Prevent → consent gate blocks Continue until
+  both boxes are checked → load the Medium persona → signals show 53 / 42 / 28
+  (Review) with family history listed → schedule shows 7 items with due dates
+  and "0 of 7" → ticking two moves the counter to "2 of 7". Load the Red-flag
+  persona → Strong 100 + urgent screen, schedule deferred.
 - **Check Deployment Protection is OFF** (Vercel defaults it ON for new
   projects — the production URL must load without a login wall). If it is on,
   turn it off in Settings → Deployment Protection → Vercel Authentication OFF.
