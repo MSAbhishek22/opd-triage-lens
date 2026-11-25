@@ -7,6 +7,8 @@
 <meta name="description" content="Deterministic 4-colour symptom triage for Indian OPDs. Type symptoms in Hinglish or English, get an urgency colour, capacity-aware slot advice and a structured doctor handoff. Triages urgency — it does not diagnose.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23c81e1e'/%3E%3Cpath d='M16 16 L31 16 A15 15 0 0 1 16 31 Z' fill='%2315803d'/%3E%3Cpath d='M16 16 L16 1 A15 15 0 0 1 31 16 Z' fill='%23d97706'/%3E%3Cpath d='M16 16 L1 16 A15 15 0 0 1 16 1 Z' fill='%231d4ed8'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23fafaf6'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="styles.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module" src="hero3d.js"></script>
 </head>
 <body>
 <a class="skip" href="#intake">Skip to triage</a>
@@ -37,6 +39,13 @@
       <h1>The OPD queue,<br>sorted by <em>urgency</em> —<br>not by arrival.</h1>
       <p class="hero-hi" lang="hi">लक्षण बताइए — हम बताएँगे कि कितनी जल्दी दिखाना है।</p>
       <p class="lede">Type symptoms in Hinglish or English. A deterministic rule engine — no model, no guess — assigns one of four colours, tells you which OPD slot to take, and writes the handoff summary your doctor actually wants to read. And when you have no symptoms at all, <strong>Prevent</strong> checks the signals that come before symptoms — an interactive risk profiler and a screening schedule, built the same transparent way.</p>
+      <!-- First-load 3D signature (J8): real Three.js triage dial, drawn on
+           load with no click. The needle follows your latest verdict. -->
+      <div class="hero3d" id="hero3d">
+        <canvas id="hero3d-canvas" width="640" height="300" role="img" aria-label="3D triage dial. Four coloured quadrants: red emergency, amber urgent, green routine, blue self-care. The needle follows your latest verdict. Drag to spin the dial."></canvas>
+        <p class="hero3d-fallback" id="hero3d-fallback" hidden>Four colours, one queue: RED emergency · AMBER urgent · GREEN routine · BLUE self-care.</p>
+        <p class="scroll-cue"><a href="#intake">Scroll ↓ — describe your symptoms to get your colour</a></p>
+      </div>
       <div class="mode-switch" role="group" aria-label="Choose a mode">
         <button type="button" id="modeTriageBtn" class="mode-btn active" aria-pressed="true">Triage — symptoms now</button>
         <button type="button" id="modePreventBtn" class="mode-btn" aria-pressed="false">Prevent — risk check</button>
